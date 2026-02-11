@@ -29,6 +29,21 @@ namespace ChirpSocial.Business.Services
             return chirps.Select(c => MapToDto(c, currentUserId)).ToList();
         }
 
+        public async Task<List<ChirpDto>> GetChirpsByPeepAsync(string peepTag, string? currentUserId = null)
+        {
+            var chirps = await _context.Chirps
+                .Include(c => c.User)
+                .Include(c => c.Likes)
+                .Include(c => c.Comments)
+                .Include(c => c.ChirpPeeps)
+                    .ThenInclude(cp => cp.Peep)
+                .Where(c => c.ChirpPeeps.Any(cp => cp.Peep.Tag == peepTag.ToLower()))
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+
+            return chirps.Select(c => MapToDto(c, currentUserId)).ToList();
+        }
+
         public async Task<ChirpDto?> CreateChirpAsync(string content, string userId)
         {
             if (string.IsNullOrWhiteSpace(content) || content.Length > 123)

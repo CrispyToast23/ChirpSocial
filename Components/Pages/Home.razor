@@ -17,13 +17,25 @@
             <ul>
                 @foreach (var peep in topPeeps)
                 {
-                    <li><strong>@peep.Tag</strong> (@peep.Count)</li>
+                    <li>
+                        <button class="peep-filter-btn" @onclick="() => FilterByPeep(peep.Tag)">
+                            <strong>@peep.Tag</strong> (@peep.Count)
+                        </button>
+                    </li>
                 }
             </ul>
         }
         else
         {
             <p>No trending peeps yet</p>
+        }
+        
+        @if (!string.IsNullOrEmpty(selectedPeep))
+        {
+            <div class="filter-active">
+                <p>Filtering by: <strong>@selectedPeep</strong></p>
+                <button class="btn-secondary btn-small" @onclick="ClearFilter">Clear Filter</button>
+            </div>
         }
     </div>
 
@@ -54,7 +66,7 @@
         </AuthorizeView>
 
         <div class="chirps-list">
-            <h3>Recent Chirps</h3>
+            <h3>@(string.IsNullOrEmpty(selectedPeep) ? "Recent Chirps" : $"Chirps with <{selectedPeep}>")</h3>
             @if (chirps.Any())
             {
                 @foreach (var chirp in chirps)
@@ -88,7 +100,9 @@
                             <div class="chirp-peeps">
                                 @foreach (var peep in chirp.Peeps)
                                 {
-                                    <span class="peep-tag">&lt;@peep&gt;</span>
+                                    <button class="peep-tag clickable" @onclick="() => FilterByPeep(peep)">
+                                        &lt;@peep&gt;
+                                    </button>
                                 }
                             </div>
                         }
@@ -178,7 +192,7 @@
             }
             else
             {
-                <p>No chirps yet. Be the first to chirp!</p>
+                <p>@(string.IsNullOrEmpty(selectedPeep) ? "No chirps yet. Be the first to chirp!" : $"No chirps found with <{selectedPeep}>")</p>
             }
         </div>
     </div>
@@ -194,6 +208,7 @@
     private string editChirpContent = string.Empty;
     private string editCommentContent = string.Empty;
     private string? currentUserId;
+    private string? selectedPeep = null;
     private int? expandedChirpId = null;
     private int? editingChirpId = null;
     private int? editingCommentId = null;
@@ -210,9 +225,32 @@
 
     private async Task LoadDataAsync()
     {
-        chirps = await ChirpService.GetRecentChirpsAsync(50, currentUserId);
+        if (string.IsNullOrEmpty(selectedPeep))
+        {
+            chirps = await ChirpService.GetRecentChirpsAsync(50, currentUserId);
+        }
+        else
+        {
+            chirps = await ChirpService.GetChirpsByPeepAsync(selectedPeep, currentUserId);
+        }
+        
         topPeeps = await PeepService.GetTopPeepsLast24HoursAsync(5);
         peepSuggestions = await ChirpService.GetPeepSuggestionsAsync();
+    }
+
+    private async Task FilterByPeep(string peep)
+    {
+        selectedPeep = peep.ToLower();
+        expandedChirpId = null;
+        editingChirpId = null;
+        editingCommentId = null;
+        await LoadDataAsync();
+    }
+
+    private async Task ClearFilter()
+    {
+        selectedPeep = null;
+        await LoadDataAsync();
     }
 
     private async Task CreateChirp()
