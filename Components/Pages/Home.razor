@@ -1,0 +1,162 @@
+﻿@page "/"
+@using ChirpSocial.Business.Services
+@using ChirpSocial.Business.Models
+@inject ChirpService ChirpService
+@inject PeepService PeepService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>Chirp Social</PageTitle>
+
+<div class="home-container">
+    <div class="trending-peeps">
+        <h3>Trending Peeps (24h)</h3>
+        @if (topPeeps.Any())
+        {
+            <ul>
+                @foreach (var peep in topPeeps)
+                {
+                    <li><strong>@peep.Tag</strong> (@peep.Count)</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No trending peeps yet</p>
+        }
+    </div>
+
+    <div class="chirp-feed">
+        <AuthorizeView>
+            <Authorized>
+                <div class="create-chirp">
+                    <h3>Create a Chirp</h3>
+                    <EditForm Model="newChirpContent" OnValidSubmit="CreateChirp" Context="editFormContext">
+                        <div class="form-group">
+                            <InputTextArea @bind-Value="newChirpContent" placeholder="What's on your mind? (max 123 chars, use <peep> for tags)" maxlength="123" rows="3" />
+                            <div class="char-count">@newChirpContent.Length / 123</div>
+                        </div>
+                        @if (peepSuggestions.Any())
+                        {
+                            <div class="peep-suggestions">
+                                <small>Recent peeps:</small>
+                                @foreach (var suggestion in peepSuggestions.Take(10))
+                                {
+                                    <button type="button" class="suggestion-btn" @onclick="() => AddPeep(suggestion)">@suggestion</button>
+                                }
+                            </div>
+                        }
+                        <button type="submit" class="btn-primary" disabled="@(string.IsNullOrWhiteSpace(newChirpContent))">Chirp!</button>
+                    </EditForm>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <div class="chirps-list">
+            <h3>Recent Chirps</h3>
+            @if (chirps.Any())
+            {
+                @foreach (var chirp in chirps)
+                {
+                    <div class="chirp-card">
+                        <div class="chirp-header">
+                            <a href="/profile/@chirp.UserName" class="user-link">@@@chirp.UserName</a>
+                            <span class="chirp-time">@FormatTime(chirp.CreatedAt)</span>
+                        </div>
+                        <div class="chirp-content">@chirp.Content</div>
+                        @if (chirp.Peeps.Any())
+                        {
+                            <div class="chirp-peeps">
+                                @foreach (var peep in chirp.Peeps)
+                                {
+                                    <span class="peep-tag">&lt;@peep&gt;</span>
+                                }
+                            </div>
+                        }
+                        <div class="chirp-actions">
+                            <AuthorizeView>
+                                <Authorized>
+                                    <button class="like-btn @(chirp.IsLikedByCurrentUser ? "liked" : "")" @onclick="() => ToggleLike(chirp.Id)">
+                                        @(chirp.IsLikedByCurrentUser ? "Liked" : "Like") @chirp.LikeCount
+                                    </button>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <span>Likes @chirp.LikeCount</span>
+                                </NotAuthorized>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p>No chirps yet. Be the first to chirp!</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ChirpDto> chirps = new();
+    private List<PeepStatsDto> topPeeps = new();
+    private List<string> peepSuggestions = new();
+    private string newChirpContent = string.Empty;
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.Identity?.IsAuthenticated == true 
+            ? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+            : null;
+
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        chirps = await ChirpService.GetRecentChirpsAsync(50, currentUserId);
+        topPeeps = await PeepService.GetTopPeepsLast24HoursAsync(5);
+        peepSuggestions = await ChirpService.GetPeepSuggestionsAsync();
+    }
+
+    private async Task CreateChirp()
+    {
+        if (string.IsNullOrWhiteSpace(newChirpContent) || currentUserId == null)
+            return;
+
+        var result = await ChirpService.CreateChirpAsync(newChirpContent, currentUserId);
+        if (result != null)
+        {
+            newChirpContent = string.Empty;
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task ToggleLike(int chirpId)
+    {
+        if (currentUserId == null)
+            return;
+
+        await ChirpService.ToggleLikeAsync(chirpId, currentUserId);
+        await LoadDataAsync();
+    }
+
+    private void AddPeep(string peep)
+    {
+        if (newChirpContent.Length + peep.Length + 2 <= 123)
+        {
+            newChirpContent += $"<{peep}> ";
+        }
+    }
+
+    private string FormatTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        if (timeSpan.TotalMinutes < 1) return "just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d ago";
+        return dateTime.ToString("MMM d, yyyy");
+    }
+}

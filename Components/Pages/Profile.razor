@@ -1,0 +1,169 @@
+@page "/profile/{username}"
+@using ChirpSocial.Business.Services
+@using ChirpSocial.Business.Models
+@using ChirpSocial.Data
+@using Microsoft.AspNetCore.Identity
+@inject UserProfileService ProfileService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>@Username - Profile</PageTitle>
+
+@if (profile != null)
+{
+    <div class="profile-container">
+        <div class="profile-header">
+            <h2>@@@profile.UserName</h2>
+            @if (isOwnProfile)
+            {
+                <button class="btn-secondary" @onclick="ToggleEditBio">@(isEditingBio ? "Cancel" : "Edit Bio")</button>
+            }
+        </div>
+
+        @if (isEditingBio)
+        {
+            <div class="bio-edit">
+                <EditForm Model="bioEdit" OnValidSubmit="SaveBio" Context="editFormContext">
+                    <InputTextArea @bind-Value="bioEdit" placeholder="Tell us about yourself..." rows="3" maxlength="200" />
+                    <button type="submit" class="btn-primary">Save</button>
+                </EditForm>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(profile.Bio))
+        {
+            <div class="bio">
+                <p>@profile.Bio</p>
+            </div>
+        }
+
+        <div class="profile-stats">
+            <div class="stat">
+                <strong>@profile.TotalChirps</strong>
+                <span>Chirps</span>
+            </div>
+            <div class="stat">
+                <strong>@profile.LikesReceived</strong>
+                <span>Likes Received</span>
+            </div>
+            <div class="stat">
+                <strong>@profile.LikesGiven</strong>
+                <span>Likes Given</span>
+            </div>
+        </div>
+
+        <div class="recent-chirps">
+            <h3>Recent Chirps</h3>
+            @if (profile.RecentChirps.Any())
+            {
+                @foreach (var chirp in profile.RecentChirps)
+                {
+                    <div class="chirp-card">
+                        <div class="chirp-header">
+                            <span class="chirp-time">@FormatTime(chirp.CreatedAt)</span>
+                        </div>
+                        <div class="chirp-content">@chirp.Content</div>
+                        @if (chirp.Peeps.Any())
+                        {
+                            <div class="chirp-peeps">
+                                @foreach (var peep in chirp.Peeps)
+                                {
+                                    <span class="peep-tag">&lt;@peep&gt;</span>
+                                }
+                            </div>
+                        }
+                        <div class="chirp-actions">
+                            <span>Likes @chirp.LikeCount</span>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p>No chirps yet.</p>
+            }
+        </div>
+    </div>
+}
+else if (loading)
+{
+    <p>Loading profile...</p>
+}
+else
+{
+    <p>User not found.</p>
+}
+
+@code {
+    [Parameter]
+    public string Username { get; set; } = string.Empty;
+
+    private UserProfileDto? profile;
+    private bool loading = true;
+    private bool isOwnProfile = false;
+    private bool isEditingBio = false;
+    private string bioEdit = string.Empty;
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.Identity?.IsAuthenticated == true 
+            ? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+            : null;
+
+        await LoadProfileAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        loading = true;
+        var user = await UserManager.FindByNameAsync(Username);
+        
+        if (user != null)
+        {
+            profile = await ProfileService.GetUserProfileAsync(user.Id, currentUserId);
+            isOwnProfile = currentUserId == user.Id;
+        }
+        else
+        {
+            profile = null;
+        }
+
+        loading = false;
+    }
+
+    private void ToggleEditBio()
+    {
+        isEditingBio = !isEditingBio;
+        if (isEditingBio)
+        {
+            bioEdit = profile?.Bio ?? string.Empty;
+        }
+    }
+
+    private async Task SaveBio()
+    {
+        if (currentUserId != null)
+        {
+            await ProfileService.UpdateBioAsync(currentUserId, bioEdit);
+            await LoadProfileAsync();
+            isEditingBio = false;
+        }
+    }
+
+    private string FormatTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        if (timeSpan.TotalMinutes < 1) return "just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d ago";
+        return dateTime.ToString("MMM d, yyyy");
+    }
+}
