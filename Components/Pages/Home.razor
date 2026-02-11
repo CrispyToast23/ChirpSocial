@@ -31,9 +31,9 @@
             <Authorized>
                 <div class="create-chirp">
                     <h3>Create a Chirp</h3>
-                    <EditForm Model="newChirpContent" OnValidSubmit="CreateChirp" Context="editFormContext">
+                    <form @onsubmit="CreateChirp">
                         <div class="form-group">
-                            <InputTextArea @bind-Value="newChirpContent" placeholder="What's on your mind? (max 123 chars, use <peep> for tags)" maxlength="123" rows="3" />
+                            <textarea @bind="newChirpContent" @bind:event="oninput" placeholder="What's on your mind? (max 123 chars, use <peep> for tags)" maxlength="123" rows="3"></textarea>
                             <div class="char-count">@newChirpContent.Length / 123</div>
                         </div>
                         @if (peepSuggestions.Any())
@@ -47,7 +47,7 @@
                             </div>
                         }
                         <button type="submit" class="btn-primary" disabled="@(string.IsNullOrWhiteSpace(newChirpContent))">Chirp!</button>
-                    </EditForm>
+                    </form>
                 </div>
             </Authorized>
         </AuthorizeView>
@@ -77,11 +77,11 @@
                             <AuthorizeView>
                                 <Authorized>
                                     <button class="like-btn @(chirp.IsLikedByCurrentUser ? "liked" : "")" @onclick="() => ToggleLike(chirp.Id)">
-                                        @(chirp.IsLikedByCurrentUser ? "Liked" : "Like") @chirp.LikeCount
+                                        @(chirp.IsLikedByCurrentUser ? "❤️" : "🤍") @chirp.LikeCount
                                     </button>
                                 </Authorized>
                                 <NotAuthorized>
-                                    <span>Likes @chirp.LikeCount</span>
+                                    <span>🤍 @chirp.LikeCount</span>
                                 </NotAuthorized>
                             </AuthorizeView>
                         </div>
