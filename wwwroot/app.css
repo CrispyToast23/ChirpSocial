@@ -286,6 +286,8 @@ body {
 .chirp-actions {
     display: flex;
     gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .like-btn {
@@ -305,72 +307,203 @@ body {
     color: #e0245e;
 }
 
-.profile-container {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.profile-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.profile-header h2 {
-    margin: 0;
-}
-
-.bio {
-    padding: 1rem;
-    background: #f5f5f5;
+.comment-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 4px;
-    margin-bottom: 1.5rem;
 }
 
-.bio-edit {
-    margin-bottom: 1.5rem;
+.comment-btn:hover {
+    background: #f5f5f5;
 }
 
-.bio-edit textarea {
-    width: 100%;
+.edit-btn {
+    background: none;
+    border: 1px solid #28a745;
+    color: #28a745;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.edit-btn:hover {
+    background: #28a745;
+    color: white;
+}
+
+.delete-btn {
+    background: none;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.edit-chirp {
+    margin-bottom: 1rem;
+}
+
+.edit-chirp form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.edit-chirp textarea {
     padding: 0.75rem;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-family: inherit;
     font-size: 1rem;
-    margin-bottom: 0.5rem;
+    resize: vertical;
 }
 
-.profile-stats {
+.edit-actions {
     display: flex;
-    gap: 2rem;
-    padding: 1.5rem 0;
+    gap: 0.5rem;
+}
+
+.comments-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
     border-top: 1px solid #eee;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 1.5rem;
 }
 
-.stat {
+.add-comment {
+    margin-bottom: 1rem;
+}
+
+.add-comment form {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    gap: 0.5rem;
+    align-items: flex-start;
 }
 
-.stat strong {
-    font-size: 1.5rem;
-    color: #1da1f2;
+.add-comment textarea {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
 }
 
-.stat span {
-    color: #666;
+.btn-small {
+    padding: 0.5rem 1rem;
     font-size: 0.9rem;
 }
 
-.recent-chirps h3 {
-    margin-bottom: 1rem;
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.comment {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 4px;
+    position: relative;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.comment-user {
+    font-weight: 600;
+    color: #1da1f2;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.comment-user:hover {
+    text-decoration: underline;
+}
+
+.comment-time {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.comment-content {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.edit-comment-btn {
+    background: none;
+    border: none;
+    color: #28a745;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.edit-comment-btn:hover {
+    text-decoration: underline;
+}
+
+.delete-comment-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.delete-comment-btn:hover {
+    text-decoration: underline;
+}
+
+.edit-comment {
+    margin-bottom: 0.5rem;
+}
+
+.edit-comment form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.edit-comment textarea {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.no-comments {
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
 }
 
 @media (max-width: 768px) {

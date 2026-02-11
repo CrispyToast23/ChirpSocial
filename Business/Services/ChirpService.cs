@@ -19,6 +19,7 @@ namespace ChirpSocial.Business.Services
             var chirps = await _context.Chirps
                 .Include(c => c.User)
                 .Include(c => c.Likes)
+                .Include(c => c.Comments)
                 .Include(c => c.ChirpPeeps)
                     .ThenInclude(cp => cp.Peep)
                 .OrderByDescending(c => c.CreatedAt)
@@ -60,6 +61,61 @@ namespace ChirpSocial.Business.Services
             await _context.Entry(chirp).Reference(c => c.User).LoadAsync();
 
             return MapToDto(chirp, userId);
+        }
+
+        public async Task<ChirpDto?> UpdateChirpAsync(int chirpId, string content, string userId)
+        {
+            if (string.IsNullOrWhiteSpace(content) || content.Length > 123)
+                return null;
+
+            var chirp = await _context.Chirps
+                .Include(c => c.ChirpPeeps)
+                .FirstOrDefaultAsync(c => c.Id == chirpId && c.UserId == userId);
+            
+            if (chirp == null)
+                return null;
+
+            chirp.Content = content;
+
+            var existingPeeps = chirp.ChirpPeeps.ToList();
+            foreach (var cp in existingPeeps)
+            {
+                _context.Remove(cp);
+            }
+
+            var peepTags = ExtractPeeps(content);
+            foreach (var tag in peepTags)
+            {
+                var peep = await _context.Peeps.FirstOrDefaultAsync(p => p.Tag == tag);
+                if (peep == null)
+                {
+                    peep = new Peep { Tag = tag };
+                    _context.Peeps.Add(peep);
+                }
+
+                chirp.ChirpPeeps.Add(new ChirpPeep { Chirp = chirp, Peep = peep });
+            }
+
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(chirp).Reference(c => c.User).LoadAsync();
+            await _context.Entry(chirp).Collection(c => c.Likes).LoadAsync();
+            await _context.Entry(chirp).Collection(c => c.Comments).LoadAsync();
+            await _context.Entry(chirp).Collection(c => c.ChirpPeeps).Query().Include(cp => cp.Peep).LoadAsync();
+
+            return MapToDto(chirp, userId);
+        }
+
+        public async Task<bool> DeleteChirpAsync(int chirpId, string userId)
+        {
+            var chirp = await _context.Chirps.FirstOrDefaultAsync(c => c.Id == chirpId && c.UserId == userId);
+            
+            if (chirp == null)
+                return false;
+
+            _context.Chirps.Remove(chirp);
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public async Task<bool> ToggleLikeAsync(int chirpId, string userId)
@@ -115,7 +171,8 @@ namespace ChirpSocial.Business.Services
                 UserName = chirp.User?.UserName ?? "Unknown",
                 LikeCount = chirp.Likes?.Count ?? 0,
                 IsLikedByCurrentUser = currentUserId != null && (chirp.Likes?.Any(l => l.UserId == currentUserId) ?? false),
-                Peeps = chirp.ChirpPeeps?.Select(cp => cp.Peep.Tag).ToList() ?? new List<string>()
+                Peeps = chirp.ChirpPeeps?.Select(cp => cp.Peep.Tag).ToList() ?? new List<string>(),
+                CommentCount = chirp.Comments?.Count ?? 0
             };
         }
     }

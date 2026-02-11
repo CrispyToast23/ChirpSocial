@@ -8,6 +8,7 @@ namespace ChirpSocial.Data
         public DbSet<Chirp> Chirps { get; set; }
         public DbSet<Peep> Peeps { get; set; }
         public DbSet<Like> Likes { get; set; }
+        public DbSet<Comment> Comments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,6 +36,12 @@ namespace ChirpSocial.Data
             modelBuilder.Entity<Like>()
                 .HasIndex(l => new { l.ChirpId, l.UserId })
                 .IsUnique();
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

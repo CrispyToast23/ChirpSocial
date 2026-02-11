@@ -3,6 +3,7 @@
 @using ChirpSocial.Business.Models
 @inject ChirpService ChirpService
 @inject PeepService PeepService
+@inject CommentService CommentService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @rendermode InteractiveServer
 
@@ -63,7 +64,25 @@
                             <a href="/profile/@chirp.UserName" class="user-link">@@@chirp.UserName</a>
                             <span class="chirp-time">@FormatTime(chirp.CreatedAt)</span>
                         </div>
-                        <div class="chirp-content">@chirp.Content</div>
+                        
+                        @if (editingChirpId == chirp.Id)
+                        {
+                            <div class="edit-chirp">
+                                <form @onsubmit="() => SaveChirpEdit(chirp.Id)">
+                                    <textarea @bind="editChirpContent" @bind:event="oninput" maxlength="123" rows="3"></textarea>
+                                    <div class="char-count">@editChirpContent.Length / 123</div>
+                                    <div class="edit-actions">
+                                        <button type="submit" class="btn-primary btn-small" disabled="@(string.IsNullOrWhiteSpace(editChirpContent))">Save</button>
+                                        <button type="button" class="btn-secondary btn-small" @onclick="CancelChirpEdit">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="chirp-content">@chirp.Content</div>
+                        }
+
                         @if (chirp.Peeps.Any())
                         {
                             <div class="chirp-peeps">
@@ -79,12 +98,81 @@
                                     <button class="like-btn @(chirp.IsLikedByCurrentUser ? "liked" : "")" @onclick="() => ToggleLike(chirp.Id)">
                                         @(chirp.IsLikedByCurrentUser ? "❤️" : "🤍") @chirp.LikeCount
                                     </button>
+                                    <button class="comment-btn" @onclick="() => ToggleComments(chirp.Id)">
+                                        💬 @chirp.CommentCount
+                                    </button>
+                                    @if (chirp.UserId == currentUserId && editingChirpId != chirp.Id)
+                                    {
+                                        <button class="edit-btn" @onclick="() => StartEditChirp(chirp.Id, chirp.Content)">✏️ Edit</button>
+                                        <button class="delete-btn" @onclick="() => DeleteChirp(chirp.Id)">🗑️ Delete</button>
+                                    }
                                 </Authorized>
                                 <NotAuthorized>
                                     <span>🤍 @chirp.LikeCount</span>
+                                    <span>💬 @chirp.CommentCount</span>
                                 </NotAuthorized>
                             </AuthorizeView>
                         </div>
+
+                        @if (expandedChirpId == chirp.Id)
+                        {
+                            <div class="comments-section">
+                                <AuthorizeView>
+                                    <Authorized>
+                                        <div class="add-comment">
+                                            <form @onsubmit="() => AddComment(chirp.Id)">
+                                                <textarea @bind="newCommentContent" @bind:event="oninput" placeholder="Write a comment..." maxlength="280" rows="2"></textarea>
+                                                <button type="submit" class="btn-primary btn-small" disabled="@(string.IsNullOrWhiteSpace(newCommentContent))">Comment</button>
+                                            </form>
+                                        </div>
+                                    </Authorized>
+                                </AuthorizeView>
+
+                                <div class="comments-list">
+                                    @if (comments.TryGetValue(chirp.Id, out var chirpComments) && chirpComments.Any())
+                                    {
+                                        @foreach (var comment in chirpComments)
+                                        {
+                                            <div class="comment">
+                                                <div class="comment-header">
+                                                    <a href="/profile/@comment.UserName" class="comment-user">@@@comment.UserName</a>
+                                                    <span class="comment-time">@FormatTime(comment.CreatedAt)</span>
+                                                </div>
+                                                
+                                                @if (editingCommentId == comment.Id)
+                                                {
+                                                    <div class="edit-comment">
+                                                        <form @onsubmit="() => SaveCommentEdit(comment.Id, chirp.Id)">
+                                                            <textarea @bind="editCommentContent" @bind:event="oninput" maxlength="280" rows="2"></textarea>
+                                                            <div class="edit-actions">
+                                                                <button type="submit" class="btn-primary btn-small" disabled="@(string.IsNullOrWhiteSpace(editCommentContent))">Save</button>
+                                                                <button type="button" class="btn-secondary btn-small" @onclick="CancelCommentEdit">Cancel</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="comment-content">@comment.Content</div>
+                                                }
+
+                                                @if (comment.UserId == currentUserId && editingCommentId != comment.Id)
+                                                {
+                                                    <div class="comment-actions">
+                                                        <button class="edit-comment-btn" @onclick="() => StartEditComment(comment.Id, comment.Content)">Edit</button>
+                                                        <button class="delete-comment-btn" @onclick="() => DeleteComment(comment.Id, chirp.Id)">Delete</button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="no-comments">No comments yet. Be the first to comment!</p>
+                                    }
+                                </div>
+                            </div>
+                        }
                     </div>
                 }
             }
@@ -100,8 +188,15 @@
     private List<ChirpDto> chirps = new();
     private List<PeepStatsDto> topPeeps = new();
     private List<string> peepSuggestions = new();
+    private Dictionary<int, List<CommentDto>> comments = new();
     private string newChirpContent = string.Empty;
+    private string newCommentContent = string.Empty;
+    private string editChirpContent = string.Empty;
+    private string editCommentContent = string.Empty;
     private string? currentUserId;
+    private int? expandedChirpId = null;
+    private int? editingChirpId = null;
+    private int? editingCommentId = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,6 +228,44 @@
         }
     }
 
+    private void StartEditChirp(int chirpId, string content)
+    {
+        editingChirpId = chirpId;
+        editChirpContent = content;
+    }
+
+    private async Task SaveChirpEdit(int chirpId)
+    {
+        if (string.IsNullOrWhiteSpace(editChirpContent) || currentUserId == null)
+            return;
+
+        var result = await ChirpService.UpdateChirpAsync(chirpId, editChirpContent, currentUserId);
+        if (result != null)
+        {
+            editingChirpId = null;
+            editChirpContent = string.Empty;
+            await LoadDataAsync();
+        }
+    }
+
+    private void CancelChirpEdit()
+    {
+        editingChirpId = null;
+        editChirpContent = string.Empty;
+    }
+
+    private async Task DeleteChirp(int chirpId)
+    {
+        if (currentUserId == null)
+            return;
+
+        var result = await ChirpService.DeleteChirpAsync(chirpId, currentUserId);
+        if (result)
+        {
+            await LoadDataAsync();
+        }
+    }
+
     private async Task ToggleLike(int chirpId)
     {
         if (currentUserId == null)
@@ -140,6 +273,80 @@
 
         await ChirpService.ToggleLikeAsync(chirpId, currentUserId);
         await LoadDataAsync();
+    }
+
+    private async Task ToggleComments(int chirpId)
+    {
+        if (expandedChirpId == chirpId)
+        {
+            expandedChirpId = null;
+        }
+        else
+        {
+            expandedChirpId = chirpId;
+            if (!comments.ContainsKey(chirpId))
+            {
+                var chirpComments = await CommentService.GetCommentsForChirpAsync(chirpId);
+                comments[chirpId] = chirpComments;
+            }
+        }
+    }
+
+    private async Task AddComment(int chirpId)
+    {
+        if (string.IsNullOrWhiteSpace(newCommentContent) || currentUserId == null)
+            return;
+
+        var result = await CommentService.CreateCommentAsync(chirpId, newCommentContent, currentUserId);
+        if (result != null)
+        {
+            newCommentContent = string.Empty;
+            var chirpComments = await CommentService.GetCommentsForChirpAsync(chirpId);
+            comments[chirpId] = chirpComments;
+            await LoadDataAsync();
+        }
+    }
+
+    private void StartEditComment(int commentId, string content)
+    {
+        editingCommentId = commentId;
+        editCommentContent = content;
+    }
+
+    private async Task SaveCommentEdit(int commentId, int chirpId)
+    {
+        if (string.IsNullOrWhiteSpace(editCommentContent) || currentUserId == null)
+            return;
+
+        var result = await CommentService.UpdateCommentAsync(commentId, editCommentContent, currentUserId);
+        if (result != null)
+        {
+            editingCommentId = null;
+            editCommentContent = string.Empty;
+            var chirpComments = await CommentService.GetCommentsForChirpAsync(chirpId);
+            comments[chirpId] = chirpComments;
+            await LoadDataAsync();
+        }
+    }
+
+    private void CancelCommentEdit()
+    {
+        editingCommentId = null;
+        editCommentContent = string.Empty;
+    }
+
+    private async Task DeleteComment(int commentId, int chirpId)
+    {
+        if (currentUserId == null)
+            return;
+
+        var result = await CommentService.DeleteCommentAsync(commentId, currentUserId);
+        if (result)
+        {
+            var chirpComments = await CommentService.GetCommentsForChirpAsync(chirpId);
+            comments[chirpId] = chirpComments;
+            await LoadDataAsync();
+        }
     }
 
     private void AddPeep(string peep)

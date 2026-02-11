@@ -42,6 +42,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddScoped<ChirpService>();
 builder.Services.AddScoped<PeepService>();
 builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddScoped<CommentService>();
 
 var app = builder.Build();
 

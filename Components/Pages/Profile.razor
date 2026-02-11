@@ -1,9 +1,10 @@
-@page "/profile/{username}"
+﻿@page "/profile/{username}"
 @using ChirpSocial.Business.Services
 @using ChirpSocial.Business.Models
 @using ChirpSocial.Data
 @using Microsoft.AspNetCore.Identity
 @inject UserProfileService ProfileService
+@inject ChirpService ChirpService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @rendermode InteractiveServer
@@ -68,12 +69,16 @@
                             <div class="chirp-peeps">
                                 @foreach (var peep in chirp.Peeps)
                                 {
-                                    <span class="peep-tag">&lt;@peep&gt;</span>
+                                    <span class="peep-tag">@peep</span>
                                 }
                             </div>
                         }
                         <div class="chirp-actions">
-                            <span>Likes @chirp.LikeCount</span>
+                            <span>🤍 @chirp.LikeCount</span>
+                            @if (isOwnProfile)
+                            {
+                                <button class="delete-btn" @onclick="() => DeleteChirp(chirp.Id)">Delete</button>
+                            }
                         </div>
                     </div>
                 }
@@ -154,6 +159,18 @@ else
             await ProfileService.UpdateBioAsync(currentUserId, bioEdit);
             await LoadProfileAsync();
             isEditingBio = false;
+        }
+    }
+
+    private async Task DeleteChirp(int chirpId)
+    {
+        if (currentUserId == null)
+            return;
+
+        var result = await ChirpService.DeleteChirpAsync(chirpId, currentUserId);
+        if (result)
+        {
+            await LoadProfileAsync();
         }
     }
 
