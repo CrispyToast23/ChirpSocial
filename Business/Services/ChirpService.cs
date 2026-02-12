@@ -24,6 +24,7 @@ namespace ChirpSocial.Business.Services
                     .ThenInclude(cp => cp.Peep)
                 .Include(c => c.Mentions)
                     .ThenInclude(m => m.MentionedUser)
+                .Include(c => c.Images)
                 .OrderByDescending(c => c.CreatedAt)
                 .Take(count)
                 .ToListAsync();
@@ -41,6 +42,7 @@ namespace ChirpSocial.Business.Services
                     .ThenInclude(cp => cp.Peep)
                 .Include(c => c.Mentions)
                     .ThenInclude(m => m.MentionedUser)
+                .Include(c => c.Images)
                 .Where(c => c.ChirpPeeps.Any(cp => cp.Peep.Tag == peepTag.ToLower()))
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
@@ -209,6 +211,27 @@ namespace ChirpSocial.Business.Services
             return peeps.Distinct().OrderBy(p => p).ToList();
         }
 
+        public async Task<bool> AddImageToChirpAsync(int chirpId, string fileName, byte[] imageData, string contentType, long fileSize, string userId)
+        {
+            var chirp = await _context.Chirps.FirstOrDefaultAsync(c => c.Id == chirpId && c.UserId == userId);
+            if (chirp == null)
+                return false;
+
+            var image = new ChirpImage
+            {
+                ChirpId = chirpId,
+                FileName = fileName,
+                ImageData = imageData,
+                ContentType = contentType,
+                FileSize = fileSize,
+                UploadedAt = DateTime.UtcNow
+            };
+
+            _context.ChirpImages.Add(image);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         private List<string> ExtractPeeps(string content)
         {
             var regex = new Regex(@"<([^>]+)>");
@@ -225,6 +248,10 @@ namespace ChirpSocial.Business.Services
 
         private ChirpDto MapToDto(Chirp chirp, string? currentUserId)
         {
+            var profilePictureUrl = chirp.User?.ProfilePicture != null && chirp.User.ProfilePictureContentType != null
+                ? $"data:{chirp.User.ProfilePictureContentType};base64,{Convert.ToBase64String(chirp.User.ProfilePicture)}"
+                : null;
+
             return new ChirpDto
             {
                 Id = chirp.Id,
@@ -232,11 +259,13 @@ namespace ChirpSocial.Business.Services
                 CreatedAt = chirp.CreatedAt,
                 UserId = chirp.UserId,
                 UserName = chirp.User?.UserName ?? "Unknown",
+                UserProfilePictureUrl = profilePictureUrl,
                 LikeCount = chirp.Likes?.Count ?? 0,
                 IsLikedByCurrentUser = currentUserId != null && (chirp.Likes?.Any(l => l.UserId == currentUserId) ?? false),
                 Peeps = chirp.ChirpPeeps?.Select(cp => cp.Peep.Tag).ToList() ?? new List<string>(),
                 CommentCount = chirp.Comments?.Count ?? 0,
-                MentionedUserNames = chirp.Mentions?.Select(m => m.MentionedUser.UserName ?? string.Empty).Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string>()
+                MentionedUserNames = chirp.Mentions?.Select(m => m.MentionedUser.UserName ?? string.Empty).Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string>(),
+                ImageUrls = chirp.Images?.Select(i => $"data:{i.ContentType};base64,{Convert.ToBase64String(i.ImageData)}").ToList() ?? new List<string>()
             };
         }
     }

@@ -10,6 +10,7 @@ namespace ChirpSocial.Data
         public DbSet<Like> Likes { get; set; }
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Mention> Mentions { get; set; }
+        public DbSet<ChirpImage> ChirpImages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -54,6 +55,12 @@ namespace ChirpSocial.Data
                 .HasOne(m => m.Chirp)
                 .WithMany(c => c.Mentions)
                 .HasForeignKey(m => m.ChirpId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChirpImage>()
+                .HasOne(ci => ci.Chirp)
+                .WithMany(c => c.Images)
+                .HasForeignKey(ci => ci.ChirpId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

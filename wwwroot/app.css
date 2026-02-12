@@ -202,31 +202,79 @@ body {
     margin-top: 0.25rem;
 }
 
-.peep-suggestions {
-    margin-bottom: 1rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
+.file-input {
+    display: none;
 }
 
-.peep-suggestions small {
-    color: #666;
-}
-
-.suggestion-btn {
+.btn-upload {
     background: #e8f5fe;
     border: 1px solid #1da1f2;
     color: #1da1f2;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-upload:hover {
+    background: #1da1f2;
+    color: white;
+}
+
+.image-preview {
+    position: relative;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.image-preview img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    display: block;
+}
+
+.remove-image-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 0.85rem;
 }
 
-.suggestion-btn:hover {
-    background: #1da1f2;
-    color: white;
+.remove-image-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.chirp-images {
+    margin-bottom: 0.75rem;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chirp-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+    border-radius: 8px;
 }
 
 .btn-primary {
@@ -277,8 +325,17 @@ body {
 
 .chirp-header {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.chirp-header .user-link {
+    margin-right: auto;
+}
+
+.chirp-header .chirp-time {
+    margin-left: auto;
 }
 
 .user-link {
@@ -501,7 +558,9 @@ body {
 .comment-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 0.5rem;
+    gap: 0.5rem;
 }
 
 .comment-user {
@@ -582,6 +641,168 @@ body {
     font-style: italic;
     text-align: center;
     padding: 1rem;
+}
+
+.peep-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.peep-suggestions small {
+    color: #666;
+    margin-right: 0.25rem;
+}
+
+.suggestion-btn {
+    background: #e8f5fe;
+    border: 1px solid #1da1f2;
+    color: #1da1f2;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.suggestion-btn:hover {
+    background: #1da1f2;
+    color: white;
+}
+
+.form-actions .peep-suggestions {
+    flex: 1;
+    min-width: 200px;
+}
+
+.profile-picture-small,
+.profile-picture-placeholder-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.profile-picture-placeholder-small {
+    background: #1da1f2;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.profile-picture-large,
+.profile-picture-placeholder-large {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-picture-placeholder-large {
+    background: #1da1f2;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 3rem;
+}
+
+.profile-picture-tiny,
+.profile-picture-placeholder-tiny {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.profile-picture-placeholder-tiny {
+    background: #1da1f2;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.profile-header {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.profile-picture-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.btn-upload-small {
+    background: #e8f5fe;
+    border: 1px solid #1da1f2;
+    color: #1da1f2;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-upload-small:hover {
+    background: #1da1f2;
+    color: white;
+}
+
+.profile-picture-upload {
+    margin-top: 0.5rem;
+}
+
+.username-edit {
+    margin-bottom: 1rem;
+}
+
+.username-edit form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.username-edit input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    min-width: 200px;
+}
+
+.error-message {
+    color: #e50000;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.profile-info h2 {
+    margin-bottom: 0.5rem;
+}
+
+.profile-info button {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {

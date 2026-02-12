@@ -50,16 +50,31 @@
                             <textarea @bind="newChirpContent" @bind:event="oninput" placeholder="What's on your mind? (max 123 chars, use <peep> for tags and @@username for mentions)" maxlength="123" rows="3"></textarea>
                             <div class="char-count">@newChirpContent.Length / 123</div>
                         </div>
-                        @if (peepSuggestions.Any())
+                        
+                        @if (imagePreviewUrl != null)
                         {
-                            <div class="peep-suggestions">
-                                <small>Recent peeps:</small>
-                                @foreach (var suggestion in peepSuggestions.Take(10))
-                                {
-                                    <button type="button" class="suggestion-btn" @onclick="() => AddPeep(suggestion)">@suggestion</button>
-                                }
+                            <div class="image-preview">
+                                <img src="@imagePreviewUrl" alt="Preview" />
+                                <button type="button" class="remove-image-btn" @onclick="RemoveImage">✕ Remove</button>
                             </div>
                         }
+                        
+                        <div class="form-actions">
+                            <InputFile OnChange="OnImageSelected" accept="image/*" class="file-input" id="imageUpload" />
+                            <label for="imageUpload" class="btn-upload">📷 Add Image</label>
+                            
+                            @if (peepSuggestions.Any())
+                            {
+                                <div class="peep-suggestions">
+                                    <small>Recent peeps:</small>
+                                    @foreach (var suggestion in peepSuggestions.Take(10))
+                                    {
+                                        <button type="button" class="suggestion-btn" @onclick="() => AddPeep(suggestion)">@suggestion</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        
                         <button type="submit" class="btn-primary" disabled="@(string.IsNullOrWhiteSpace(newChirpContent))">Chirp!</button>
                     </form>
                 </div>
@@ -74,6 +89,16 @@
                 {
                     <div class="chirp-card">
                         <div class="chirp-header">
+                            @if (!string.IsNullOrEmpty(chirp.UserProfilePictureUrl))
+                            {
+                                <img src="@chirp.UserProfilePictureUrl" alt="@chirp.UserName" class="profile-picture-small" />
+                            }
+                            else
+                            {
+                                <div class="profile-picture-placeholder-small">
+                                    <span>@chirp.UserName.Substring(0, 1).ToUpper()</span>
+                                </div>
+                            }
                             <a href="/profile/@chirp.UserName" class="user-link">@@@chirp.UserName</a>
                             <span class="chirp-time">@FormatTime(chirp.CreatedAt)</span>
                         </div>
@@ -95,6 +120,16 @@
                         {
                             <div class="chirp-content" @onclick="HandleContentClick">
                                 @RenderContentWithLinks(chirp.Content)
+                            </div>
+                        }
+
+                        @if (chirp.ImageUrls.Any())
+                        {
+                            <div class="chirp-images">
+                                @foreach (var imageUrl in chirp.ImageUrls)
+                                {
+                                    <img src="@imageUrl" alt="Chirp image" class="chirp-image" />
+                                }
                             </div>
                         }
 
@@ -141,6 +176,16 @@
                                         {
                                             <div class="comment">
                                                 <div class="comment-header">
+                                                    @if (!string.IsNullOrEmpty(comment.UserProfilePictureUrl))
+                                                    {
+                                                        <img src="@comment.UserProfilePictureUrl" alt="@comment.UserName" class="profile-picture-tiny" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="profile-picture-placeholder-tiny">
+                                                            <span>@comment.UserName.Substring(0, 1).ToUpper()</span>
+                                                        </div>
+                                                    }
                                                     <a href="/profile/@comment.UserName" class="comment-user">@@@comment.UserName</a>
                                                     <span class="comment-time">@FormatTime(comment.CreatedAt)</span>
                                                 </div>
@@ -206,6 +251,9 @@
     private int? expandedChirpId = null;
     private int? editingChirpId = null;
     private int? editingCommentId = null;
+    private IBrowserFile? selectedImage = null;
+    private string? imagePreviewUrl = null;
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
 
     protected override async Task OnInitializedAsync()
     {
@@ -264,7 +312,14 @@
         var result = await ChirpService.CreateChirpAsync(newChirpContent, currentUserId);
         if (result != null)
         {
+            if (selectedImage != null)
+            {
+                await UploadImageAsync(result.Id);
+            }
+            
             newChirpContent = string.Empty;
+            selectedImage = null;
+            imagePreviewUrl = null;
             await LoadDataAsync();
         }
     }
@@ -453,5 +508,80 @@
         }
 
         return new MarkupString(result.ToString().TrimEnd());
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.GetMultipleFiles(1).FirstOrDefault();
+        if (file != null)
+        {
+            if (file.Size > MaxFileSize)
+            {
+                await JS.InvokeVoidAsync("alert", "File size exceeds the 5MB limit.");
+                return;
+            }
+
+            selectedImage = file;
+
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream(MaxFileSize).ReadAsync(buffer);
+
+            imagePreviewUrl = $"data:image/png;base64,{Convert.ToBase64String(buffer)}";
+        }
+    }
+
+    private void ClearImage()
+    {
+        selectedImage = null;
+        imagePreviewUrl = null;
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        selectedImage = e.File;
+        
+        if (selectedImage != null)
+        {
+            if (selectedImage.Size > MaxFileSize)
+            {
+                selectedImage = null;
+                return;
+            }
+
+            var buffer = new byte[selectedImage.Size];
+            await selectedImage.OpenReadStream(MaxFileSize).ReadAsync(buffer);
+            var base64 = Convert.ToBase64String(buffer);
+            imagePreviewUrl = $"data:{selectedImage.ContentType};base64,{base64}";
+        }
+    }
+
+    private void RemoveImage()
+    {
+        selectedImage = null;
+        imagePreviewUrl = null;
+    }
+
+    private async Task UploadImageAsync(int chirpId)
+    {
+        if (selectedImage == null || currentUserId == null)
+            return;
+
+        try
+        {
+            var buffer = new byte[selectedImage.Size];
+            await selectedImage.OpenReadStream(MaxFileSize).ReadAsync(buffer);
+
+            await ChirpService.AddImageToChirpAsync(
+                chirpId, 
+                selectedImage.Name, 
+                buffer, 
+                selectedImage.ContentType, 
+                selectedImage.Size, 
+                currentUserId);
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("console.error", $"Failed to upload image: {ex.Message}");
+        }
     }
 }

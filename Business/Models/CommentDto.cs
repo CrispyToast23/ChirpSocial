@@ -8,5 +8,6 @@ namespace ChirpSocial.Business.Models
         public int ChirpId { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
+        public string? UserProfilePictureUrl { get; set; }
     }
 }

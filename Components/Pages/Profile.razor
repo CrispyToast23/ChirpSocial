@@ -7,6 +7,7 @@
 @inject ChirpService ChirpService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 
 <PageTitle>@Username - Profile</PageTitle>
@@ -15,11 +16,53 @@
 {
     <div class="profile-container">
         <div class="profile-header">
-            <h2>@@@profile.UserName</h2>
-            @if (isOwnProfile)
-            {
-                <button class="btn-secondary" @onclick="ToggleEditBio">@(isEditingBio ? "Cancel" : "Edit Bio")</button>
-            }
+            <div class="profile-picture-section">
+                @if (!string.IsNullOrEmpty(profile.ProfilePictureUrl))
+                {
+                    <img src="@profile.ProfilePictureUrl" alt="@profile.UserName" class="profile-picture-large" />
+                }
+                else
+                {
+                    <div class="profile-picture-placeholder-large">
+                        <span>@profile.UserName.Substring(0, 1).ToUpper()</span>
+                    </div>
+                }
+                @if (isOwnProfile)
+                {
+                    <div class="profile-picture-upload">
+                        <InputFile OnChange="OnProfilePictureSelected" accept="image/*" class="file-input" id="profilePictureUpload" />
+                        <label for="profilePictureUpload" class="btn-upload-small">📷 Change Picture</label>
+                    </div>
+                }
+            </div>
+            <div class="profile-info">
+                @if (isEditingUsername)
+                {
+                    <div class="username-edit">
+                        <EditForm Model="usernameEdit" OnValidSubmit="SaveUsername" Context="editFormContext">
+                            <InputText @bind-Value="usernameEdit" placeholder="Enter new username" maxlength="20" />
+                            <button type="submit" class="btn-primary btn-small">Save</button>
+                            <button type="button" class="btn-secondary btn-small" @onclick="CancelUsernameEdit">Cancel</button>
+                        </EditForm>
+                        @if (!string.IsNullOrEmpty(usernameError))
+                        {
+                            <p class="error-message">@usernameError</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <h2>@@@profile.UserName</h2>
+                }
+                @if (isOwnProfile)
+                {
+                    @if (!isEditingUsername)
+                    {
+                        <button class="btn-secondary" @onclick="ToggleEditUsername">Change Username</button>
+                    }
+                    <button class="btn-secondary" @onclick="ToggleEditBio">@(isEditingBio ? "Cancel" : "Edit Bio")</button>
+                }
+            </div>
         </div>
 
         @if (isEditingBio)
@@ -109,6 +152,11 @@ else
     private bool isEditingBio = false;
     private string bioEdit = string.Empty;
     private string? currentUserId;
+    private IBrowserFile? selectedProfilePicture = null;
+    private const long MaxProfilePictureSize = 2 * 1024 * 1024; // 2MB
+    private bool isEditingUsername = false;
+    private string usernameEdit = string.Empty;
+    private string? usernameError = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,6 +200,41 @@ else
         }
     }
 
+    private void ToggleEditUsername()
+    {
+        isEditingUsername = !isEditingUsername;
+        usernameError = null;
+        if (isEditingUsername)
+        {
+            usernameEdit = profile?.UserName ?? string.Empty;
+        }
+    }
+
+    private void CancelUsernameEdit()
+    {
+        isEditingUsername = false;
+        usernameError = null;
+    }
+
+    private async Task SaveUsername()
+    {
+        if (currentUserId != null && !string.IsNullOrWhiteSpace(usernameEdit))
+        {
+            var result = await ProfileService.UpdateUsernameAsync(currentUserId, usernameEdit);
+            if (result.Success)
+            {
+                isEditingUsername = false;
+                usernameError = null;
+                // Redirect to new profile URL
+                NavigationManager.NavigateTo($"/profile/{usernameEdit}", forceLoad: true);
+            }
+            else
+            {
+                usernameError = result.ErrorMessage ?? "Failed to update username";
+            }
+        }
+    }
+
     private async Task SaveBio()
     {
         if (currentUserId != null)
@@ -182,5 +265,33 @@ else
         if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
         if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d ago";
         return dateTime.ToString("MMM d, yyyy");
+    }
+
+    private async Task OnProfilePictureSelected(InputFileChangeEventArgs e)
+    {
+        selectedProfilePicture = e.File;
+        
+        if (selectedProfilePicture != null && currentUserId != null)
+        {
+            if (selectedProfilePicture.Size > MaxProfilePictureSize)
+            {
+                // TODO: Show error message
+                selectedProfilePicture = null;
+                return;
+            }
+
+            try
+            {
+                var buffer = new byte[selectedProfilePicture.Size];
+                await selectedProfilePicture.OpenReadStream(MaxProfilePictureSize).ReadAsync(buffer);
+
+                await ProfileService.UpdateProfilePictureAsync(currentUserId, buffer, selectedProfilePicture.ContentType);
+                await LoadProfileAsync();
+            }
+            catch
+            {
+                // TODO: Handle upload errors
+            }
+        }
     }
 }

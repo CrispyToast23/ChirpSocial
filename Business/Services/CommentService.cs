@@ -28,7 +28,10 @@ namespace ChirpSocial.Business.Services
                 CreatedAt = c.CreatedAt,
                 ChirpId = c.ChirpId,
                 UserId = c.UserId,
-                UserName = c.User?.UserName ?? "Unknown"
+                UserName = c.User?.UserName ?? "Unknown",
+                UserProfilePictureUrl = c.User?.ProfilePicture != null && c.User.ProfilePictureContentType != null
+                    ? $"data:{c.User.ProfilePictureContentType};base64,{Convert.ToBase64String(c.User.ProfilePicture)}"
+                    : null
             }).ToList();
         }
 
@@ -50,6 +53,10 @@ namespace ChirpSocial.Business.Services
 
             await _context.Entry(comment).Reference(c => c.User).LoadAsync();
 
+            var profilePictureUrl = comment.User?.ProfilePicture != null && comment.User.ProfilePictureContentType != null
+                ? $"data:{comment.User.ProfilePictureContentType};base64,{Convert.ToBase64String(comment.User.ProfilePicture)}"
+                : null;
+
             return new CommentDto
             {
                 Id = comment.Id,
@@ -57,7 +64,8 @@ namespace ChirpSocial.Business.Services
                 CreatedAt = comment.CreatedAt,
                 ChirpId = comment.ChirpId,
                 UserId = comment.UserId,
-                UserName = comment.User?.UserName ?? "Unknown"
+                UserName = comment.User?.UserName ?? "Unknown",
+                UserProfilePictureUrl = profilePictureUrl
             };
         }
 
@@ -76,6 +84,10 @@ namespace ChirpSocial.Business.Services
             comment.Content = content;
             await _context.SaveChangesAsync();
 
+            var profilePictureUrl = comment.User?.ProfilePicture != null && comment.User.ProfilePictureContentType != null
+                ? $"data:{comment.User.ProfilePictureContentType};base64,{Convert.ToBase64String(comment.User.ProfilePicture)}"
+                : null;
+
             return new CommentDto
             {
                 Id = comment.Id,
@@ -83,7 +95,8 @@ namespace ChirpSocial.Business.Services
                 CreatedAt = comment.CreatedAt,
                 ChirpId = comment.ChirpId,
                 UserId = comment.UserId,
-                UserName = comment.User?.UserName ?? "Unknown"
+                UserName = comment.User?.UserName ?? "Unknown",
+                UserProfilePictureUrl = profilePictureUrl
             };
         }
 

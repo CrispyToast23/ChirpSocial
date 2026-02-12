@@ -11,5 +11,6 @@ namespace ChirpSocial.Data
         public ICollection<ChirpPeep> ChirpPeeps { get; set; } = new List<ChirpPeep>();
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
         public ICollection<Mention> Mentions { get; set; } = new List<Mention>();
+        public ICollection<ChirpImage> Images { get; set; } = new List<ChirpImage>();
     }
 }
