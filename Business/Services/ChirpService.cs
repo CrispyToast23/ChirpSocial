@@ -62,7 +62,6 @@ namespace ChirpSocial.Business.Services
 
             _context.Chirps.Add(chirp);
 
-            // Extract and add peeps
             var peepTags = ExtractPeeps(content);
             foreach (var tag in peepTags)
             {
@@ -76,7 +75,6 @@ namespace ChirpSocial.Business.Services
                 chirp.ChirpPeeps.Add(new ChirpPeep { Chirp = chirp, Peep = peep });
             }
 
-            // Extract and add mentions
             var mentionedUsernames = ExtractMentions(content);
             foreach (var username in mentionedUsernames)
             {
@@ -114,21 +112,18 @@ namespace ChirpSocial.Business.Services
 
             chirp.Content = content;
 
-            // Remove old peeps
             var existingPeeps = chirp.ChirpPeeps.ToList();
             foreach (var cp in existingPeeps)
             {
                 _context.Remove(cp);
             }
 
-            // Remove old mentions
             var existingMentions = chirp.Mentions.ToList();
             foreach (var m in existingMentions)
             {
                 _context.Remove(m);
             }
 
-            // Add new peeps
             var peepTags = ExtractPeeps(content);
             foreach (var tag in peepTags)
             {
@@ -142,7 +137,6 @@ namespace ChirpSocial.Business.Services
                 chirp.ChirpPeeps.Add(new ChirpPeep { Chirp = chirp, Peep = peep });
             }
 
-            // Add new mentions
             var mentionedUsernames = ExtractMentions(content);
             foreach (var username in mentionedUsernames)
             {
