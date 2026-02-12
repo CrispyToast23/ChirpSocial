@@ -11,5 +11,6 @@ namespace ChirpSocial.Business.Models
         public bool IsLikedByCurrentUser { get; set; }
         public List<string> Peeps { get; set; } = new();
         public int CommentCount { get; set; }
+        public List<string> MentionedUserNames { get; set; } = new();
     }
 }

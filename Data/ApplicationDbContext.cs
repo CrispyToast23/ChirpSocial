@@ -9,6 +9,7 @@ namespace ChirpSocial.Data
         public DbSet<Peep> Peeps { get; set; }
         public DbSet<Like> Likes { get; set; }
         public DbSet<Comment> Comments { get; set; }
+        public DbSet<Mention> Mentions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -42,6 +43,18 @@ namespace ChirpSocial.Data
                 .WithMany()
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Mention>()
+                .HasOne(m => m.MentionedUser)
+                .WithMany()
+                .HasForeignKey(m => m.MentionedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Mention>()
+                .HasOne(m => m.Chirp)
+                .WithMany(c => c.Mentions)
+                .HasForeignKey(m => m.ChirpId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

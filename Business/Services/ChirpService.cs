@@ -22,6 +22,8 @@ namespace ChirpSocial.Business.Services
                 .Include(c => c.Comments)
                 .Include(c => c.ChirpPeeps)
                     .ThenInclude(cp => cp.Peep)
+                .Include(c => c.Mentions)
+                    .ThenInclude(m => m.MentionedUser)
                 .OrderByDescending(c => c.CreatedAt)
                 .Take(count)
                 .ToListAsync();
@@ -37,6 +39,8 @@ namespace ChirpSocial.Business.Services
                 .Include(c => c.Comments)
                 .Include(c => c.ChirpPeeps)
                     .ThenInclude(cp => cp.Peep)
+                .Include(c => c.Mentions)
+                    .ThenInclude(m => m.MentionedUser)
                 .Where(c => c.ChirpPeeps.Any(cp => cp.Peep.Tag == peepTag.ToLower()))
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
@@ -58,6 +62,7 @@ namespace ChirpSocial.Business.Services
 
             _context.Chirps.Add(chirp);
 
+            // Extract and add peeps
             var peepTags = ExtractPeeps(content);
             foreach (var tag in peepTags)
             {
@@ -71,9 +76,25 @@ namespace ChirpSocial.Business.Services
                 chirp.ChirpPeeps.Add(new ChirpPeep { Chirp = chirp, Peep = peep });
             }
 
+            // Extract and add mentions
+            var mentionedUsernames = ExtractMentions(content);
+            foreach (var username in mentionedUsernames)
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == username);
+                if (user != null)
+                {
+                    chirp.Mentions.Add(new Mention
+                    {
+                        Chirp = chirp,
+                        MentionedUserId = user.Id
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             await _context.Entry(chirp).Reference(c => c.User).LoadAsync();
+            await _context.Entry(chirp).Collection(c => c.Mentions).Query().Include(m => m.MentionedUser).LoadAsync();
 
             return MapToDto(chirp, userId);
         }
@@ -85,6 +106,7 @@ namespace ChirpSocial.Business.Services
 
             var chirp = await _context.Chirps
                 .Include(c => c.ChirpPeeps)
+                .Include(c => c.Mentions)
                 .FirstOrDefaultAsync(c => c.Id == chirpId && c.UserId == userId);
             
             if (chirp == null)
@@ -92,12 +114,21 @@ namespace ChirpSocial.Business.Services
 
             chirp.Content = content;
 
+            // Remove old peeps
             var existingPeeps = chirp.ChirpPeeps.ToList();
             foreach (var cp in existingPeeps)
             {
                 _context.Remove(cp);
             }
 
+            // Remove old mentions
+            var existingMentions = chirp.Mentions.ToList();
+            foreach (var m in existingMentions)
+            {
+                _context.Remove(m);
+            }
+
+            // Add new peeps
             var peepTags = ExtractPeeps(content);
             foreach (var tag in peepTags)
             {
@@ -111,12 +142,28 @@ namespace ChirpSocial.Business.Services
                 chirp.ChirpPeeps.Add(new ChirpPeep { Chirp = chirp, Peep = peep });
             }
 
+            // Add new mentions
+            var mentionedUsernames = ExtractMentions(content);
+            foreach (var username in mentionedUsernames)
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == username);
+                if (user != null)
+                {
+                    chirp.Mentions.Add(new Mention
+                    {
+                        Chirp = chirp,
+                        MentionedUserId = user.Id
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             await _context.Entry(chirp).Reference(c => c.User).LoadAsync();
             await _context.Entry(chirp).Collection(c => c.Likes).LoadAsync();
             await _context.Entry(chirp).Collection(c => c.Comments).LoadAsync();
             await _context.Entry(chirp).Collection(c => c.ChirpPeeps).Query().Include(cp => cp.Peep).LoadAsync();
+            await _context.Entry(chirp).Collection(c => c.Mentions).Query().Include(m => m.MentionedUser).LoadAsync();
 
             return MapToDto(chirp, userId);
         }
@@ -175,6 +222,13 @@ namespace ChirpSocial.Business.Services
             return matches.Select(m => m.Groups[1].Value.ToLower()).Distinct().ToList();
         }
 
+        private List<string> ExtractMentions(string content)
+        {
+            var regex = new Regex(@"@(\w+)");
+            var matches = regex.Matches(content);
+            return matches.Select(m => m.Groups[1].Value).Distinct().ToList();
+        }
+
         private ChirpDto MapToDto(Chirp chirp, string? currentUserId)
         {
             return new ChirpDto
@@ -187,7 +241,8 @@ namespace ChirpSocial.Business.Services
                 LikeCount = chirp.Likes?.Count ?? 0,
                 IsLikedByCurrentUser = currentUserId != null && (chirp.Likes?.Any(l => l.UserId == currentUserId) ?? false),
                 Peeps = chirp.ChirpPeeps?.Select(cp => cp.Peep.Tag).ToList() ?? new List<string>(),
-                CommentCount = chirp.Comments?.Count ?? 0
+                CommentCount = chirp.Comments?.Count ?? 0,
+                MentionedUserNames = chirp.Mentions?.Select(m => m.MentionedUser.UserName ?? string.Empty).Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string>()
             };
         }
     }

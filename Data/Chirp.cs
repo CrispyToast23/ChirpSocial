@@ -10,5 +10,6 @@ namespace ChirpSocial.Data
         public ICollection<Like> Likes { get; set; } = new List<Like>();
         public ICollection<ChirpPeep> ChirpPeeps { get; set; } = new List<ChirpPeep>();
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+        public ICollection<Mention> Mentions { get; set; } = new List<Mention>();
     }
 }

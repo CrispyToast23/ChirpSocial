@@ -5,6 +5,7 @@
 @inject PeepService PeepService
 @inject CommentService CommentService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Chirp Social</PageTitle>
@@ -46,7 +47,7 @@
                     <h3>Create a Chirp</h3>
                     <form @onsubmit="CreateChirp">
                         <div class="form-group">
-                            <textarea @bind="newChirpContent" @bind:event="oninput" placeholder="What's on your mind? (max 123 chars, use <peep> for tags)" maxlength="123" rows="3"></textarea>
+                            <textarea @bind="newChirpContent" @bind:event="oninput" placeholder="What's on your mind? (max 123 chars, use <peep> for tags and @@username for mentions)" maxlength="123" rows="3"></textarea>
                             <div class="char-count">@newChirpContent.Length / 123</div>
                         </div>
                         @if (peepSuggestions.Any())
@@ -92,20 +93,11 @@
                         }
                         else
                         {
-                            <div class="chirp-content">@chirp.Content</div>
-                        }
-
-                        @if (chirp.Peeps.Any())
-                        {
-                            <div class="chirp-peeps">
-                                @foreach (var peep in chirp.Peeps)
-                                {
-                                    <button class="peep-tag clickable" @onclick="() => FilterByPeep(peep)">
-                                        &lt;@peep&gt;
-                                    </button>
-                                }
+                            <div class="chirp-content" @onclick="HandleContentClick">
+                                @RenderContentWithLinks(chirp.Content)
                             </div>
                         }
+
                         <div class="chirp-actions">
                             <AuthorizeView>
                                 <Authorized>
@@ -167,7 +159,9 @@
                                                 }
                                                 else
                                                 {
-                                                    <div class="comment-content">@comment.Content</div>
+                                                    <div class="comment-content" @onclick="HandleContentClick">
+                                                        @RenderContentWithLinks(comment.Content)
+                                                    </div>
                                                 }
 
                                                 @if (comment.UserId == currentUserId && editingCommentId != comment.Id)
@@ -251,6 +245,15 @@
     {
         selectedPeep = null;
         await LoadDataAsync();
+    }
+
+    private async Task HandleContentClick(MouseEventArgs e)
+    {
+        var peep = await JS.InvokeAsync<string>("getPeepFromClick", e.ClientX, e.ClientY);
+        if (!string.IsNullOrEmpty(peep))
+        {
+            await FilterByPeep(peep);
+        }
     }
 
     private async Task CreateChirp()
@@ -403,5 +406,52 @@
         if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
         if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d ago";
         return dateTime.ToString("MMM d, yyyy");
+    }
+
+    private MarkupString RenderContentWithLinks(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(string.Empty);
+
+        var words = content.Split(' ');
+        var result = new System.Text.StringBuilder();
+
+        foreach (var word in words)
+        {
+            var trimmedWord = word.Trim();
+            
+            var mentionMatch = System.Text.RegularExpressions.Regex.Match(trimmedWord, @"^@(\w+)(.*)$");
+            if (mentionMatch.Success)
+            {
+                var username = mentionMatch.Groups[1].Value;
+                var trailing = mentionMatch.Groups[2].Value;
+                result.Append($"<a href=\"/profile/{username}\" class=\"mention-link\">@{username}</a>");
+                if (!string.IsNullOrEmpty(trailing))
+                {
+                    result.Append(System.Net.WebUtility.HtmlEncode(trailing));
+                }
+                result.Append(" ");
+                continue;
+            }
+
+            var peepMatch = System.Text.RegularExpressions.Regex.Match(trimmedWord, @"^<([^>]+)>(.*)$");
+            if (peepMatch.Success)
+            {
+                var peepTag = peepMatch.Groups[1].Value;
+                var trailing = peepMatch.Groups[2].Value;
+                result.Append($"<span class=\"peep-tag-inline clickable\" data-peep=\"{System.Net.WebUtility.HtmlEncode(peepTag)}\" style=\"cursor: pointer;\">&lt;{System.Net.WebUtility.HtmlEncode(peepTag)}&gt;</span>");
+                if (!string.IsNullOrEmpty(trailing))
+                {
+                    result.Append(System.Net.WebUtility.HtmlEncode(trailing));
+                }
+                result.Append(" ");
+                continue;
+            }
+
+            result.Append(System.Net.WebUtility.HtmlEncode(word));
+            result.Append(" ");
+        }
+
+        return new MarkupString(result.ToString().TrimEnd());
     }
 }
